@@ -1,9 +1,9 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use std::env;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Arguments {
-    pub starting_path: Box<str>,
+    pub path: Box<str>,
     pub dry_run: bool,
 }
 
@@ -27,7 +27,10 @@ pub fn parse_arguments() -> Result<Arguments> {
         if args[2] == "--dry-run" {
             dry_run = true;
         } else {
-            bail!("Invalid argument: {}. Expected --dry-run or no additional arguments", args[2]);
+            bail!(
+                "Invalid argument: {}. Expected --dry-run or no additional arguments",
+                args[2]
+            );
         }
     }
 
@@ -36,7 +39,7 @@ pub fn parse_arguments() -> Result<Arguments> {
     }
 
     Ok(Arguments {
-        starting_path,
+        path: starting_path,
         dry_run,
     })
 }
@@ -44,7 +47,7 @@ pub fn parse_arguments() -> Result<Arguments> {
 fn main() -> Result<()> {
     let arguments = parse_arguments().context("Failed to parse arguments")?;
 
-    println!("Starting path: {}", arguments.starting_path);
+    println!("Starting path: {}", arguments.path);
     println!("Dry run: {}", arguments.dry_run);
 
     Ok(())
@@ -69,7 +72,7 @@ mod tests {
 
         assert!(parsed.is_ok());
         let arguments = parsed.unwrap();
-        assert_eq!(arguments.starting_path.as_ref(), expected_path);
+        assert_eq!(arguments.path.as_ref(), expected_path);
         assert_eq!(arguments.dry_run, expected_dry_run);
     }
 
@@ -96,7 +99,10 @@ mod tests {
             if args[2] == "--dry-run" {
                 dry_run = true;
             } else {
-                bail!("Invalid argument: {}. Expected --dry-run or no additional arguments", args[2]);
+                bail!(
+                    "Invalid argument: {}. Expected --dry-run or no additional arguments",
+                    args[2]
+                );
             }
         }
 
@@ -105,7 +111,7 @@ mod tests {
         }
 
         Ok(Arguments {
-            starting_path,
+            path: starting_path,
             dry_run,
         })
     }
