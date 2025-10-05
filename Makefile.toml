@@ -1,0 +1,75 @@
+[config]
+default_to_workspace = false
+
+[tasks.build]
+description = "Build the project"
+command = "cargo"
+args = ["build"]
+
+[tasks.build-release]
+description = "Build the project in release mode"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.test]
+description = "Run all tests"
+command = "cargo"
+args = ["test"]
+
+[tasks.test-verbose]
+description = "Run all tests with verbose output"
+command = "cargo"
+args = ["test", "--", "--nocapture"]
+
+[tasks.run]
+description = "Run the CLI tool (requires PATH argument)"
+command = "cargo"
+args = ["run", "--bin", "immich-refresh", "--", "${@}"]
+
+[tasks.run-dry-run]
+description = "Run the CLI tool in dry-run mode (requires PATH argument)"
+command = "cargo"
+args = ["run", "--bin", "immich-refresh", "--", "${@}", "--dry-run"]
+
+[tasks.cross-compile]
+description = "Cross-compile for x86_64-unknown-linux-gnu from ARM64"
+command = "cargo"
+args = ["build", "--release", "--target", "x86_64-unknown-linux-gnu"]
+
+[tasks.install-cross-target]
+description = "Install x86_64-unknown-linux-gnu target for cross-compilation"
+command = "rustup"
+args = ["target", "add", "x86_64-unknown-linux-gnu"]
+
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean"]
+
+[tasks.check]
+description = "Check the project for errors without building"
+command = "cargo"
+args = ["check"]
+
+[tasks.fmt]
+description = "Format the code"
+command = "cargo"
+args = ["fmt"]
+
+[tasks.fmt-check]
+description = "Check code formatting without modifying files"
+command = "cargo"
+args = ["fmt", "--", "--check"]
+
+[tasks.clippy]
+description = "Run clippy for linting"
+command = "cargo"
+args = ["clippy", "--", "-D", "warnings"]
+
+[tasks.all]
+description = "Format, check, test, and build the project"
+dependencies = ["fmt", "check", "test", "build"]
+
+[tasks.ci]
+description = "Run CI checks (format check, clippy, test, build)"
+dependencies = ["fmt-check", "clippy", "test", "build"]
