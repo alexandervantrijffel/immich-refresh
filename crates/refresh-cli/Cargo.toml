@@ -1,0 +1,20 @@
+[package]
+name = "refresh-cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "immich-refresh"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+rstest.workspace = true
+pretty_assertions.workspace = true
