@@ -1,14 +1,20 @@
 # immich-refresh
 
-A CLI tool for batch uploading photos to [Immich](https://immich.app/) with automatic album organization based on directory structure.
+A Rust CLI tool for batch uploading photos to [Immich](https://immich.app/) with intelligent album organization based on directory structure.
 
-## What Does This Tool Do?
+## Overview
 
-`immich-refresh` traverses a directory structure and automatically uploads photos to Immich, organizing them into albums based on the grandchild directory names. It's designed to work with a specific directory hierarchy where:
+`immich-refresh` automates the process of uploading large photo collections to Immich by traversing a two-level directory structure and creating albums based on folder names. Perfect for organizing photos from multiple events, years, or categories without manual album creation.
 
-- **Base path**: The starting directory (e.g., `/photos`)
-- **Child directories**: First level subdirectories (e.g., `/photos/2024`, `/photos/vacation`)
-- **Grandchild directories**: Second level subdirectories that become album names (e.g., `/photos/2024/summer`, `/photos/vacation/beach`)
+### How It Works
+
+The tool operates on a **grandchild directory pattern**:
+
+- **Base path**: Your photo collection root (e.g., `/mnt/photos`)
+- **Child directories**: Top-level categories (e.g., `/mnt/photos/2024`, `/mnt/photos/vacation`)
+- **Grandchild directories**: Specific albums (e.g., `/mnt/photos/2024/summer`, `/mnt/photos/vacation/beach`)
+
+Each grandchild directory becomes an Immich album with all its photos uploaded.
 
 ### Album Naming Logic
 
@@ -27,14 +33,15 @@ A CLI tool for batch uploading photos to [Immich](https://immich.app/) with auto
     └── Other       → Album: "vacation" (case-insensitive)
 ```
 
-### Features
+### Key Features
 
-- **Automatic album organization**: Albums are created based on directory structure
-- **Sequential processing**: Directories are processed one at a time to avoid overwhelming the system
-- **Error resilience**: Continues processing remaining directories even if one fails
-- **Dry-run mode**: Preview what would be uploaded without actually executing commands
-- **Logging**: Logs to both stdout and `/var/log/immich-refresh.log` (file logging disabled in dry-run mode)
-- **Signal handling**: Gracefully handles SIGINT/SIGTERM by stopping current upload and exiting
+- **Automatic album organization** - Albums created from directory names
+- **Sequential processing** - One directory at a time to prevent system overload
+- **Error resilient** - Continues on failures, logs errors for review
+- **Dry-run mode** - Preview operations without uploading
+- **Comprehensive logging** - Dual output to stdout and `/var/log/immich-refresh.log`
+- **Signal handling** - Graceful shutdown on Ctrl+C (SIGINT/SIGTERM)
+- **Smart naming** - Handles "other" directories by using parent names
 
 ## Prerequisites
 
@@ -74,17 +81,22 @@ cargo build --release
 
 ### Cross-compilation for x86_64
 
-If you're developing on ARM64 (e.g., Apple Silicon) and need to deploy to x86_64 Linux:
+If you're developing on ARM64 (e.g., Apple Silicon, ARM Linux) and need to deploy to x86_64 Linux:
 
 ```bash
-# Install the target
-cargo make install-cross-target
+# Install the x86_64 target
+cargo make install-target
 
-# Cross-compile
-cargo make cross-compile
+# Build for x86_64 (compile only, no tests)
+cargo make build-x86_64
 ```
 
 The binary will be available at `target/x86_64-unknown-linux-gnu/release/immich-refresh`.
+
+**Note:** Tests should be run on your native architecture:
+```bash
+cargo test
+```
 
 ## Usage
 
@@ -232,26 +244,3 @@ immich-refresh/
    /usr/src/app/cli/bin/immich upload -H -r -c 24 -A <album_name> <path>/*
    ```
 5. **Handle errors**: Logs errors and continues processing remaining directories
-
-## Error Handling
-
-- **Path doesn't exist**: Exits with error
-- **Path is not a directory**: Exits with error
-- **Upload fails**: Logs error and continues with next directory
-- **Authentication error**: Immich CLI error is displayed to user
-- **Signal received (Ctrl+C)**: Kills current upload and exits with code 130
-
-## Timeout
-
-Each upload command has a 3-hour timeout. If an upload doesn't complete within this time, it's terminated.
-
-## License
-
-This project is licensed under the terms specified in the LICENSE file.
-
-## Contributing
-
-1. Format your code: `cargo make fmt`
-2. Run tests: `cargo make test`
-3. Run linter: `cargo make clippy`
-4. Ensure CI passes: `cargo make ci`

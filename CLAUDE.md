@@ -10,7 +10,7 @@ Example:
 
 The external command that we're going to call is the immich photomanagement-cli-upload command. And we will pass a path to it and the name of the album to which the uploaded photos should be added. 
 
-The execute method of the upload, command, struct, and trade has to do a shell execute with the CLI tool of immich. And then it has to check whether the results, the exit code of that command was 0, and whether there was no timeout. Stream the output of the command to stdout and stderr while it is running.
+The execute method of the upload, command, struct, and trait has to do a shell execute with the CLI tool of immich. And then it has to check whether the results, the exit code of that command was 0. Stream the output of the command to stdout and stderr while it is running.
 
 Our CLI is started as:
 

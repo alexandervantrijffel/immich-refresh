@@ -31,13 +31,13 @@ description = "Run the CLI tool in dry-run mode (requires PATH argument)"
 command = "cargo"
 args = ["run", "--bin", "immich-refresh", "--", "${@}", "--dry-run"]
 
-[tasks.cross-compile]
-description = "Cross-compile for x86_64-unknown-linux-gnu from ARM64"
+[tasks.build-x86_64]
+description = "Build for x86_64-unknown-linux-gnu (compile only, no tests)"
 command = "cargo"
 args = ["build", "--release", "--target", "x86_64-unknown-linux-gnu"]
 
-[tasks.install-cross-target]
-description = "Install x86_64-unknown-linux-gnu target for cross-compilation"
+[tasks.install-target]
+description = "Install x86_64-unknown-linux-gnu target"
 command = "rustup"
 args = ["target", "add", "x86_64-unknown-linux-gnu"]
 
