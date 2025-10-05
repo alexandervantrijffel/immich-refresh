@@ -1,9 +1,6 @@
 use crate::execute::{Execute, ExecuteArgs};
+use crate::prelude::*;
 use crate::Arguments;
-use anyhow::{bail, Context, Result};
-use std::fs;
-use std::path::Path;
-use tracing::{debug, error, info};
 
 pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
     let base_path = Path::new(arguments.path.as_ref());

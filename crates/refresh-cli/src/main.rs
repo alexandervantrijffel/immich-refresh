@@ -1,8 +1,9 @@
 mod execute;
+mod prelude;
+mod tracing_config;
 mod traverse;
 
-use anyhow::{bail, Context, Result};
-use std::env;
+use prelude::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Arguments {
@@ -52,8 +53,10 @@ fn parse_arguments_from_args(args: Vec<String>) -> Result<Arguments> {
 fn main() -> Result<()> {
     let arguments = parse_arguments().context("Failed to parse arguments")?;
 
-    println!("Starting path: {}", arguments.path);
-    println!("Dry run: {}", arguments.dry_run);
+    tracing_config::configure(arguments.dry_run)?;
+
+    let executor = execute::Executer::new();
+    traverse::traverse(&arguments, &executor)?;
 
     Ok(())
 }
