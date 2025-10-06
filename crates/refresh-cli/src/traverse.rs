@@ -77,6 +77,10 @@ pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
                         error!("Authentication failed: {}", msg);
                         bail!("Aborting due to authentication failure");
                     }
+                    ExecuteError::ImmichCliNotFound(ref path) => {
+                        error!("Immich CLI not found at {}", path);
+                        bail!("Aborting because Immich CLI is not installed");
+                    }
                     ExecuteError::Other(ref err) => {
                         error!(
                             "Failed to execute for directory {}: {}",
@@ -249,6 +253,35 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("authentication failure"));
+    }
+
+    #[test]
+    fn test_traverse_aborts_on_immich_cli_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let base_path = temp_dir.path();
+
+        fs::create_dir(base_path.join("child1")).unwrap();
+        fs::create_dir(base_path.join("child1/grandchildA")).unwrap();
+
+        let mut mock_executor = MockExecutor::new();
+        // First call should fail with CLI not found error
+        mock_executor.expect_execute().times(1).returning(|_| {
+            Err(ExecuteError::ImmichCliNotFound(
+                "/usr/src/app/cli/bin/immich".to_string(),
+            ))
+        });
+
+        let arguments = Arguments {
+            path: base_path.to_string_lossy().into_owned().into_boxed_str(),
+            dry_run: false,
+        };
+
+        let result = traverse(&arguments, &mock_executor);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Immich CLI is not installed"));
     }
 
     #[test]

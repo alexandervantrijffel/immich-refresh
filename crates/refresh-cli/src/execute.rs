@@ -7,10 +7,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
 
+const IMMICH_CLI_PATH: &str = "/usr/src/app/cli/bin/immich";
+
 #[derive(Debug, Error)]
 pub enum ExecuteError {
     #[error("Authentication failed: {0}")]
     AuthFailed(String),
+    #[error("Immich CLI not found at {0}")]
+    ImmichCliNotFound(String),
     #[error("{0}")]
     Other(#[from] anyhow::Error),
 }
@@ -50,9 +54,17 @@ impl Executer {
 
     fn format_command(&self, args: &ExecuteArgs) -> String {
         format!(
-            "/usr/src/app/cli/bin/immich upload -H -r -c 24 -A {} {}/*",
-            args.album_name, args.path
+            "{} upload -H -r -c 24 -A {} {}/*",
+            IMMICH_CLI_PATH, args.album_name, args.path
         )
+    }
+
+    fn check_immich_cli_exists() -> Result<(), ExecuteError> {
+        let cli_path = Path::new(IMMICH_CLI_PATH);
+        if !cli_path.exists() {
+            return Err(ExecuteError::ImmichCliNotFound(IMMICH_CLI_PATH.to_string()));
+        }
+        Ok(())
     }
 
     fn execute_command(&self, command_str: &str) -> Result<(), ExecuteError> {
@@ -193,6 +205,9 @@ impl Executer {
 
 impl Execute for Executer {
     fn execute(&self, args: &ExecuteArgs) -> Result<(), ExecuteError> {
+        // Check if Immich CLI exists before proceeding
+        Self::check_immich_cli_exists()?;
+
         let command = self.format_command(args);
 
         if args.dry_run {
@@ -243,7 +258,12 @@ mod tests {
         };
 
         let result = executer.execute(&args);
-        assert!(result.is_ok());
+        // Should fail with ImmichCliNotFound since CLI doesn't exist in test environment
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ExecuteError::ImmichCliNotFound(_)
+        ));
     }
 
     #[test]
@@ -256,6 +276,22 @@ mod tests {
         };
 
         let result = executer.execute(&args);
-        assert!(result.is_ok());
+        // Should fail with ImmichCliNotFound since CLI doesn't exist in test environment
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ExecuteError::ImmichCliNotFound(_)
+        ));
+    }
+
+    #[test]
+    fn test_check_immich_cli_not_found() {
+        let result = Executer::check_immich_cli_exists();
+        // Should fail since CLI doesn't exist in test environment
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ExecuteError::ImmichCliNotFound(_)
+        ));
     }
 }
