@@ -2,6 +2,15 @@
 
 A Rust CLI tool for batch uploading photos to [Immich](https://immich.app/) with intelligent album organization based on directory structure.
 
+## Why This Tool?
+
+Immich does not support loading images from the library into the database. If you have a photo library on disk and restore your Immich database from a backup, the database will be empty even though your photos still exist in the library directory. This tool helps you refresh the images in the database by re-uploading them from your existing library structure, automatically recreating albums based on your directory organization.
+
+**Common use cases:**
+- Restoring photos to Immich after a database restoration
+- Initial bulk import of an existing photo library into Immich
+- Re-syncing photos that were lost from the database but still exist on disk
+
 ## Overview
 
 `immich-refresh` automates the process of uploading large photo collections to Immich by traversing a two-level directory structure and creating albums based on folder names. Perfect for organizing photos from multiple events, years, or categories without manual album creation.
