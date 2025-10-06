@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e  # Exit on first error
+
+cargo fmt --all -- --check
+
+cargo clippy -- -D warnings
+
+cargo test
