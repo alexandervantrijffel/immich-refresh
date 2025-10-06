@@ -1,4 +1,4 @@
-use crate::execute::{Execute, ExecuteArgs};
+use crate::execute::{Execute, ExecuteArgs, ExecuteError};
 use crate::prelude::*;
 use crate::Arguments;
 
@@ -72,7 +72,19 @@ pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
             };
 
             if let Err(e) = executor.execute(&execute_args) {
-                error!("Failed to execute for directory {}: {}", grandchild_name, e);
+                match e {
+                    ExecuteError::AuthFailed(ref msg) => {
+                        error!("Authentication failed: {}", msg);
+                        bail!("Aborting due to authentication failure");
+                    }
+                    ExecuteError::Other(ref err) => {
+                        error!(
+                            "Failed to execute for directory {}: {}",
+                            grandchild_name, err
+                        );
+                        // Continue processing other directories
+                    }
+                }
             }
         }
     }
@@ -83,7 +95,7 @@ pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execute::{Execute, ExecuteArgs};
+    use crate::execute::{Execute, ExecuteArgs, ExecuteError};
     use mockall::mock;
     use mockall::predicate::*;
     use pretty_assertions::assert_eq;
@@ -94,7 +106,7 @@ mod tests {
         pub Executor {}
 
         impl Execute for Executor {
-            fn execute(&self, args: &ExecuteArgs) -> Result<()>;
+            fn execute(&self, args: &ExecuteArgs) -> Result<(), ExecuteError>;
         }
     }
 
@@ -192,7 +204,7 @@ mod tests {
         let mut mock_executor = MockExecutor::new();
         mock_executor.expect_execute().times(2).returning(|args| {
             if args.album_name.contains("grandchildA") {
-                Err(anyhow::anyhow!("Simulated error"))
+                Err(ExecuteError::Other(anyhow::anyhow!("Simulated error")))
             } else {
                 Ok(())
             }
@@ -205,6 +217,38 @@ mod tests {
 
         let result = traverse(&arguments, &mock_executor);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_traverse_aborts_on_auth_failure() {
+        let temp_dir = TempDir::new().unwrap();
+        let base_path = temp_dir.path();
+
+        fs::create_dir(base_path.join("child1")).unwrap();
+        fs::create_dir(base_path.join("child1/grandchildA")).unwrap();
+
+        fs::create_dir(base_path.join("child2")).unwrap();
+        fs::create_dir(base_path.join("child2/grandchildB")).unwrap();
+
+        let mut mock_executor = MockExecutor::new();
+        // First call should fail with auth error
+        mock_executor.expect_execute().times(1).returning(|_| {
+            Err(ExecuteError::AuthFailed(
+                "Authentication required".to_string(),
+            ))
+        });
+
+        let arguments = Arguments {
+            path: base_path.to_string_lossy().into_owned().into_boxed_str(),
+            dry_run: false,
+        };
+
+        let result = traverse(&arguments, &mock_executor);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("authentication failure"));
     }
 
     #[test]
