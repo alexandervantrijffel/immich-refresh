@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
 
-const IMMICH_CLI_PATH: &str = "/usr/src/app/cli/bin/immich";
+const IMMICH_CLI_COMMAND: &str = "immich";
 
 #[derive(Debug, Error)]
 pub enum ExecuteError {
@@ -55,16 +55,36 @@ impl Executer {
     fn format_command(&self, args: &ExecuteArgs) -> String {
         format!(
             "{} upload -H -r -c 24 -A {} {}/*",
-            IMMICH_CLI_PATH, args.album_name, args.path
+            IMMICH_CLI_COMMAND, args.album_name, args.path
         )
     }
 
     fn check_immich_cli_exists() -> Result<(), ExecuteError> {
-        let cli_path = Path::new(IMMICH_CLI_PATH);
-        if !cli_path.exists() {
-            return Err(ExecuteError::ImmichCliNotFound(IMMICH_CLI_PATH.to_string()));
+        // Try to run 'immich --version' to check if the command exists and is executable
+        let result = Command::new(IMMICH_CLI_COMMAND)
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+
+        match result {
+            Ok(mut child) => {
+                // Command exists and started, wait for it to finish
+                let _ = child.wait();
+                Ok(())
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Err(ExecuteError::ImmichCliNotFound(format!(
+                    "'{}' command not found in PATH",
+                    IMMICH_CLI_COMMAND
+                )))
+            }
+            Err(e) => Err(ExecuteError::Other(anyhow::anyhow!(
+                "Failed to check for '{}' command: {}",
+                IMMICH_CLI_COMMAND,
+                e
+            ))),
         }
-        Ok(())
     }
 
     fn execute_command(&self, command_str: &str) -> Result<(), ExecuteError> {
@@ -233,7 +253,7 @@ mod tests {
         let command = executer.format_command(&args);
         assert_eq!(
             command,
-            "/usr/src/app/cli/bin/immich upload -H -r -c 24 -A grandchildA /base/child1/grandchildA/*"
+            "immich upload -H -r -c 24 -A grandchildA /base/child1/grandchildA/*"
         );
     }
 

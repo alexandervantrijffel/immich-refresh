@@ -267,7 +267,7 @@ mod tests {
         // First call should fail with CLI not found error
         mock_executor.expect_execute().times(1).returning(|_| {
             Err(ExecuteError::ImmichCliNotFound(
-                "/usr/src/app/cli/bin/immich".to_string(),
+                "'immich' command not found in PATH".to_string(),
             ))
         });
 

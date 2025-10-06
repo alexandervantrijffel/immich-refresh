@@ -46,7 +46,7 @@ Each grandchild directory becomes an Immich album with all its photos uploaded.
 ## Prerequisites
 
 - Rust 1.90 or later (edition 2021)
-- [Immich CLI](https://immich.app/docs/features/command-line-interface) installed at `/usr/src/app/cli/bin/immich`
+- [Immich CLI](https://immich.app/docs/features/command-line-interface) installed and available in PATH as `immich`
 - Immich CLI must be authenticated to your Immich server
 
 ## Installation
@@ -241,6 +241,6 @@ immich-refresh/
    - Determines album name based on grandchild name (or parent if "other")
 4. **Execute uploads**: For each grandchild directory, runs:
    ```bash
-   /usr/src/app/cli/bin/immich upload -H -r -c 24 -A <album_name> <path>/*
+   immich upload -H -r -c 24 -A <album_name> <path>/*
    ```
 5. **Handle errors**: Logs errors and continues processing remaining directories
