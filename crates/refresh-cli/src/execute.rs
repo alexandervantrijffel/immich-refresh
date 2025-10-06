@@ -110,11 +110,9 @@ impl Executer {
         // Read and stream stdout
         let stdout_handle = std::thread::spawn(move || {
             let mut lines = Vec::new();
-            for line in stdout_reader.lines() {
-                if let Ok(line) = line {
-                    println!("{}", line);
-                    lines.push(line);
-                }
+            for line in stdout_reader.lines().flatten() {
+                println!("{}", line);
+                lines.push(line);
             }
             lines
         });
@@ -122,11 +120,9 @@ impl Executer {
         // Read and stream stderr
         let stderr_handle = std::thread::spawn(move || {
             let mut lines = Vec::new();
-            for line in stderr_reader.lines() {
-                if let Ok(line) = line {
-                    eprintln!("{}", line);
-                    lines.push(line);
-                }
+            for line in stderr_reader.lines().flatten() {
+                eprintln!("{}", line);
+                lines.push(line);
             }
             lines
         });
