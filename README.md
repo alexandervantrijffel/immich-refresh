@@ -39,7 +39,7 @@ Each grandchild directory becomes an Immich album with all its photos uploaded.
 - **Sequential processing** - One directory at a time to prevent system overload
 - **Error resilient** - Continues on failures, logs errors for review
 - **Dry-run mode** - Preview operations without uploading
-- **Comprehensive logging** - Dual output to stdout and `/var/log/immich-refresh.log`
+- **Comprehensive logging** - Dual output to stdout and `~/.local/state/immich-refresh/run.log`
 - **Signal handling** - Graceful shutdown on Ctrl+C (SIGINT/SIGTERM)
 - **Smart naming** - Handles "other" directories by using parent names
 
@@ -192,12 +192,12 @@ cargo make ci
 The tool uses structured logging with the `tracing` crate:
 
 - **Stdout**: Always logs to stdout
-- **File**: Logs to `/var/log/immich-refresh.log` (append mode) in normal mode
+- **File**: Logs to `~/.local/state/immich-refresh/run.log` (append mode) in normal mode
 - **Dry-run**: File logging is disabled in dry-run mode
 
-Log location is printed at startup:
+The log directory is automatically created if it doesn't exist. Log location is printed at startup:
 ```
-INFO Logging to stdout and /var/log/immich-refresh.log
+INFO Logging to stdout and /home/user/.local/state/immich-refresh/run.log
 ```
 
 ### Setting Log Level

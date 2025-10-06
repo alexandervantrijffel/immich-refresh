@@ -1,7 +1,19 @@
 use crate::prelude::*;
+use std::path::PathBuf;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-const LOG_FILE_PATH: &str = "/var/log/immich-refresh.log";
+fn get_log_file_path() -> Result<PathBuf> {
+    let home_dir = env::var("HOME").context("Failed to get HOME environment variable")?;
+
+    let log_dir = Path::new(&home_dir)
+        .join(".local")
+        .join("state")
+        .join("immich-refresh");
+
+    let log_file_path = log_dir.join("run.log");
+
+    Ok(log_file_path)
+}
 
 pub fn configure(dry_run: bool) -> Result<()> {
     let stdout_layer = fmt::layer().with_writer(std::io::stdout);
@@ -16,7 +28,28 @@ pub fn configure(dry_run: bool) -> Result<()> {
 
         info!("[DRY RUN] Logging to stdout only (file logging disabled)");
     } else {
-        let file_appender = tracing_appender::rolling::never("/var/log", "immich-refresh.log");
+        let log_file_path = get_log_file_path()?;
+        let log_dir = log_file_path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Invalid log file path"))?;
+
+        // Create the log directory if it doesn't exist
+        fs::create_dir_all(log_dir)
+            .with_context(|| format!("Failed to create log directory at {}", log_dir.display()))?;
+
+        // Test if we can write to the log file location before initializing the appender
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_file_path)
+            .with_context(|| {
+                format!(
+                    "Failed to initialize log file at {}. Check permissions.",
+                    log_file_path.display()
+                )
+            })?;
+
+        let file_appender = tracing_appender::rolling::never(log_dir, "run.log");
         let file_layer = fmt::layer().with_writer(file_appender).with_ansi(false);
 
         tracing_subscriber::registry()
@@ -25,7 +58,7 @@ pub fn configure(dry_run: bool) -> Result<()> {
             .with(file_layer)
             .init();
 
-        info!("Logging to stdout and {}", LOG_FILE_PATH);
+        info!("Logging to stdout and {}", log_file_path.display());
     }
 
     Ok(())
