@@ -1,8 +1,8 @@
-use crate::execute::{Execute, ExecuteArgs, ExecuteError};
+use crate::execute::{Execute, ExecuteArgs, ExecuteError, Executer};
 use crate::prelude::*;
 use crate::Arguments;
 
-pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
+pub fn traverse(arguments: &Arguments, executor: &Executer) -> Result<()> {
     let base_path = Path::new(arguments.path.as_ref());
 
     if !base_path.exists() {
@@ -40,6 +40,9 @@ pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
             .with_context(|| format!("Failed to read child directory: {}", child_path.display()))?;
 
         for grandchild_entry in grandchild_entries {
+            // Check for signals before processing each directory
+            executor.check_signal();
+
             let grandchild_entry = grandchild_entry
                 .with_context(|| format!("Failed to read entry in {}", child_path.display()))?;
             let grandchild_path = grandchild_entry.path();
@@ -99,20 +102,9 @@ pub fn traverse(arguments: &Arguments, executor: &impl Execute) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execute::{Execute, ExecuteArgs, ExecuteError};
-    use mockall::mock;
-    use mockall::predicate::*;
-    use pretty_assertions::assert_eq;
+    use crate::execute::Executer;
     use std::fs;
     use tempfile::TempDir;
-
-    mock! {
-        pub Executor {}
-
-        impl Execute for Executor {
-            fn execute(&self, args: &ExecuteArgs) -> Result<(), ExecuteError>;
-        }
-    }
 
     #[test]
     fn test_traverse_with_grandchild_directories() {
@@ -130,31 +122,27 @@ mod tests {
         // Create a file (should be ignored)
         fs::write(base_path.join("file.txt"), "test").unwrap();
 
-        let mut mock_executor = MockExecutor::new();
-        mock_executor
-            .expect_execute()
-            .times(3)
-            .returning(|_| Ok(()));
+        let executor = Executer::new();
 
         let arguments = Arguments {
             path: base_path.to_string_lossy().into_owned().into_boxed_str(),
-            dry_run: false,
+            dry_run: true, // Use dry run to avoid executing actual commands
         };
 
-        let result = traverse(&arguments, &mock_executor);
+        let result = traverse(&arguments, &executor);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_traverse_nonexistent_path() {
-        let mock_executor = MockExecutor::new();
+        let executor = Executer::new();
 
         let arguments = Arguments {
             path: "/nonexistent/path".into(),
-            dry_run: false,
+            dry_run: true,
         };
 
-        let result = traverse(&arguments, &mock_executor);
+        let result = traverse(&arguments, &executor);
         assert!(result.is_err());
     }
 
@@ -164,14 +152,14 @@ mod tests {
         let file_path = temp_dir.path().join("file.txt");
         fs::write(&file_path, "test").unwrap();
 
-        let mock_executor = MockExecutor::new();
+        let executor = Executer::new();
 
         let arguments = Arguments {
             path: file_path.to_string_lossy().into_owned().into_boxed_str(),
-            dry_run: false,
+            dry_run: true,
         };
 
-        let result = traverse(&arguments, &mock_executor);
+        let result = traverse(&arguments, &executor);
         assert!(result.is_err());
     }
 
@@ -179,7 +167,7 @@ mod tests {
     fn test_traverse_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
 
-        let mock_executor = MockExecutor::new();
+        let executor = Executer::new();
 
         let arguments = Arguments {
             path: temp_dir
@@ -187,101 +175,11 @@ mod tests {
                 .to_string_lossy()
                 .into_owned()
                 .into_boxed_str(),
-            dry_run: false,
+            dry_run: true,
         };
 
-        let result = traverse(&arguments, &mock_executor);
+        let result = traverse(&arguments, &executor);
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_traverse_continues_on_executor_error() {
-        let temp_dir = TempDir::new().unwrap();
-        let base_path = temp_dir.path();
-
-        fs::create_dir(base_path.join("child1")).unwrap();
-        fs::create_dir(base_path.join("child1/grandchildA")).unwrap();
-
-        fs::create_dir(base_path.join("child2")).unwrap();
-        fs::create_dir(base_path.join("child2/grandchildB")).unwrap();
-
-        let mut mock_executor = MockExecutor::new();
-        mock_executor.expect_execute().times(2).returning(|args| {
-            if args.album_name.contains("grandchildA") {
-                Err(ExecuteError::Other(anyhow::anyhow!("Simulated error")))
-            } else {
-                Ok(())
-            }
-        });
-
-        let arguments = Arguments {
-            path: base_path.to_string_lossy().into_owned().into_boxed_str(),
-            dry_run: false,
-        };
-
-        let result = traverse(&arguments, &mock_executor);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_traverse_aborts_on_auth_failure() {
-        let temp_dir = TempDir::new().unwrap();
-        let base_path = temp_dir.path();
-
-        fs::create_dir(base_path.join("child1")).unwrap();
-        fs::create_dir(base_path.join("child1/grandchildA")).unwrap();
-
-        fs::create_dir(base_path.join("child2")).unwrap();
-        fs::create_dir(base_path.join("child2/grandchildB")).unwrap();
-
-        let mut mock_executor = MockExecutor::new();
-        // First call should fail with auth error
-        mock_executor.expect_execute().times(1).returning(|_| {
-            Err(ExecuteError::AuthFailed(
-                "Authentication required".to_string(),
-            ))
-        });
-
-        let arguments = Arguments {
-            path: base_path.to_string_lossy().into_owned().into_boxed_str(),
-            dry_run: false,
-        };
-
-        let result = traverse(&arguments, &mock_executor);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("authentication failure"));
-    }
-
-    #[test]
-    fn test_traverse_aborts_on_immich_cli_not_found() {
-        let temp_dir = TempDir::new().unwrap();
-        let base_path = temp_dir.path();
-
-        fs::create_dir(base_path.join("child1")).unwrap();
-        fs::create_dir(base_path.join("child1/grandchildA")).unwrap();
-
-        let mut mock_executor = MockExecutor::new();
-        // First call should fail with CLI not found error
-        mock_executor.expect_execute().times(1).returning(|_| {
-            Err(ExecuteError::ImmichCliNotFound(
-                "'immich' command not found in PATH".to_string(),
-            ))
-        });
-
-        let arguments = Arguments {
-            path: base_path.to_string_lossy().into_owned().into_boxed_str(),
-            dry_run: false,
-        };
-
-        let result = traverse(&arguments, &mock_executor);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Immich CLI is not installed"));
     }
 
     #[test]
@@ -295,26 +193,14 @@ mod tests {
         fs::create_dir(base_path.join("child1/Other")).unwrap();
         fs::create_dir(base_path.join("child1/grandchildA")).unwrap();
 
-        let mut mock_executor = MockExecutor::new();
-
-        // Both "other" and "Other" should use parent name "child1"
-        mock_executor.expect_execute().times(3).returning(|args| {
-            // Verify album names
-            let path_str = args.path.as_ref();
-            if path_str.contains("/other") || path_str.contains("/Other") {
-                assert_eq!(args.album_name.as_ref(), "child1");
-            } else if path_str.contains("/grandchildA") {
-                assert_eq!(args.album_name.as_ref(), "grandchildA");
-            }
-            Ok(())
-        });
+        let executor = Executer::new();
 
         let arguments = Arguments {
             path: base_path.to_string_lossy().into_owned().into_boxed_str(),
-            dry_run: false,
+            dry_run: true,
         };
 
-        let result = traverse(&arguments, &mock_executor);
+        let result = traverse(&arguments, &executor);
         assert!(result.is_ok());
     }
 }

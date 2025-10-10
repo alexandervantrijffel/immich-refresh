@@ -52,6 +52,13 @@ impl Executer {
         Self { signal_received }
     }
 
+    pub fn check_signal(&self) {
+        if self.signal_received.load(Ordering::Relaxed) {
+            info!("Signal received, exiting");
+            std::process::exit(130);
+        }
+    }
+
     fn build_command_args(&self, args: &ExecuteArgs) -> Vec<String> {
         vec![
             "upload".to_string(),
@@ -172,6 +179,8 @@ impl Executer {
                 if let Err(e) = child.kill() {
                     error!("Failed to kill child process: {}", e);
                 }
+                // Wait for the child to actually terminate
+                let _ = child.wait();
                 std::process::exit(130);
             }
 
@@ -238,6 +247,9 @@ impl Executer {
 
 impl Execute for Executer {
     fn execute(&self, args: &ExecuteArgs) -> Result<(), ExecuteError> {
+        // Check for signals at the very start
+        self.check_signal();
+
         // Check if Immich CLI exists before proceeding
         Self::check_immich_cli_exists()?;
 
