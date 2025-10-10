@@ -54,7 +54,7 @@ impl Executer {
 
     fn format_command(&self, args: &ExecuteArgs) -> String {
         format!(
-            "{} upload -H -r -c 24 -A {} {}/*",
+            r#"{} upload -H -r -c 24 -A {} "{}/*""#,
             IMMICH_CLI_COMMAND, args.album_name, args.path
         )
     }
