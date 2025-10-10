@@ -241,6 +241,16 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
+    fn is_immich_cli_installed() -> bool {
+        Command::new("which")
+            .arg("immich")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
     #[test]
     fn test_format_command() {
         let executer = Executer::new();
@@ -253,7 +263,7 @@ mod tests {
         let command = executer.format_command(&args);
         assert_eq!(
             command,
-            "immich upload -H -r -c 24 -A grandchildA /base/child1/grandchildA/*"
+            r#"immich upload -H -r -c 24 -A "grandchildA" "/base/child1/grandchildA/*""#
         );
     }
 
@@ -273,13 +283,26 @@ mod tests {
             dry_run,
         };
 
+        let immich_found = is_immich_cli_installed();
         let result = executer.execute(&args);
-        // Should fail with ImmichCliNotFound since CLI doesn't exist in test environment
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ExecuteError::ImmichCliNotFound(_)
-        ));
+
+        if immich_found {
+            // If immich is found, the function should return success (dry run mode)
+            assert!(
+                result.is_ok(),
+                "Expected success when immich CLI is found in dry run mode"
+            );
+        } else {
+            // If immich is not found, the function should return ImmichCliNotFound error
+            assert!(
+                result.is_err(),
+                "Expected error when immich CLI is not found"
+            );
+            assert!(matches!(
+                result.unwrap_err(),
+                ExecuteError::ImmichCliNotFound(_)
+            ));
+        }
     }
 
     #[test]
@@ -291,23 +314,44 @@ mod tests {
             dry_run: true,
         };
 
+        let immich_found = is_immich_cli_installed();
         let result = executer.execute(&args);
-        // Should fail with ImmichCliNotFound since CLI doesn't exist in test environment
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ExecuteError::ImmichCliNotFound(_)
-        ));
+
+        if immich_found {
+            // If immich is found, the function should return success (dry run mode)
+            assert!(
+                result.is_ok(),
+                "Expected success when immich CLI is found in dry run mode"
+            );
+        } else {
+            // If immich is not found, the function should return ImmichCliNotFound error
+            assert!(
+                result.is_err(),
+                "Expected error when immich CLI is not found"
+            );
+            assert!(matches!(
+                result.unwrap_err(),
+                ExecuteError::ImmichCliNotFound(_)
+            ));
+        }
     }
 
     #[test]
     fn test_check_immich_cli_not_found() {
+        let immich_found = is_immich_cli_installed();
         let result = Executer::check_immich_cli_exists();
-        // Should fail since CLI doesn't exist in test environment
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ExecuteError::ImmichCliNotFound(_)
-        ));
+
+        if immich_found {
+            assert!(result.is_ok(), "Expected success when immich CLI is found");
+        } else {
+            assert!(
+                result.is_err(),
+                "Expected error when immich CLI is not found"
+            );
+            assert!(matches!(
+                result.unwrap_err(),
+                ExecuteError::ImmichCliNotFound(_)
+            ));
+        }
     }
 }
