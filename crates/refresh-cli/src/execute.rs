@@ -184,10 +184,10 @@ impl Executer {
 
                     // Log output to logfile
                     for line in &output_lines {
-                        info!("stdout: {}", line);
+                        info!("stdout: {line}");
                     }
                     for line in &error_lines {
-                        error!("stderr: {}", line);
+                        info!("stderr: {line}");
                     }
 
                     if !status.success() {
