@@ -52,7 +52,20 @@ impl Executer {
         Self { signal_received }
     }
 
-    fn format_command(&self, args: &ExecuteArgs) -> String {
+    fn build_command_args(&self, args: &ExecuteArgs) -> Vec<String> {
+        vec![
+            "upload".to_string(),
+            "-H".to_string(),
+            "-r".to_string(),
+            "-c".to_string(),
+            "24".to_string(),
+            "-A".to_string(),
+            args.album_name.to_string(),
+            args.path.to_string(),
+        ]
+    }
+
+    fn format_command_display(&self, args: &ExecuteArgs) -> String {
         format!(
             r#"{} upload -H -r -c 24 -A "{}" "{}""#,
             IMMICH_CLI_COMMAND, args.album_name, args.path
@@ -87,28 +100,32 @@ impl Executer {
         }
     }
 
-    fn execute_command(&self, command_str: &str) -> Result<(), ExecuteError> {
-        // Parse command into program and arguments
-        let parts: Vec<&str> = command_str.split_whitespace().collect();
-        if parts.is_empty() {
-            return Err(ExecuteError::Other(anyhow::anyhow!("Empty command")));
-        }
+    fn execute_command(
+        &self,
+        command_args: &[String],
+        display_str: &str,
+    ) -> Result<(), ExecuteError> {
+        info!("Executing: {}", display_str);
 
-        let program = parts[0];
-        let args = &parts[1..];
-
-        info!("Executing: {}", command_str);
+        // Get current working directory
+        let current_dir = std::env::current_dir().map_err(|e| {
+            ExecuteError::Other(anyhow::anyhow!(
+                "Failed to get current working directory: {}",
+                e
+            ))
+        })?;
 
         // Spawn the process with piped stdout and stderr
-        let mut child = Command::new(program)
-            .args(args)
+        let mut child = Command::new(IMMICH_CLI_COMMAND)
+            .args(command_args)
+            .current_dir(&current_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| {
                 ExecuteError::Other(anyhow::anyhow!(
                     "Failed to spawn command '{}': {}",
-                    command_str,
+                    display_str,
                     e
                 ))
             })?;
@@ -194,7 +211,7 @@ impl Executer {
                         } else {
                             let error_message = format!(
                                 "Command '{}' failed with exit code {}",
-                                command_str, exit_code
+                                display_str, exit_code
                             );
                             error!("{}", error_message);
                             return Err(ExecuteError::Other(anyhow::anyhow!(error_message)));
@@ -224,13 +241,14 @@ impl Execute for Executer {
         // Check if Immich CLI exists before proceeding
         Self::check_immich_cli_exists()?;
 
-        let command = self.format_command(args);
+        let command_args = self.build_command_args(args);
+        let display_str = self.format_command_display(args);
 
         if args.dry_run {
-            info!("[DRY RUN] Would execute: {}", command);
+            info!("[DRY RUN] Would execute: {}", display_str);
             Ok(())
         } else {
-            self.execute_command(&command)
+            self.execute_command(&command_args, &display_str)
         }
     }
 }
@@ -252,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_command() {
+    fn test_build_command_args() {
         let executer = Executer::new();
         let args = ExecuteArgs {
             path: "/base/child1/grandchildA".into(),
@@ -260,9 +278,34 @@ mod tests {
             dry_run: false,
         };
 
-        let command = executer.format_command(&args);
+        let command_args = executer.build_command_args(&args);
         assert_eq!(
-            command,
+            command_args,
+            vec![
+                "upload",
+                "-H",
+                "-r",
+                "-c",
+                "24",
+                "-A",
+                "grandchildA",
+                "/base/child1/grandchildA"
+            ]
+        );
+    }
+
+    #[test]
+    fn test_format_command_display() {
+        let executer = Executer::new();
+        let args = ExecuteArgs {
+            path: "/base/child1/grandchildA".into(),
+            album_name: "grandchildA".into(),
+            dry_run: false,
+        };
+
+        let display = executer.format_command_display(&args);
+        assert_eq!(
+            display,
             r#"immich upload -H -r -c 24 -A "grandchildA" "/base/child1/grandchildA""#
         );
     }
