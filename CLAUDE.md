@@ -18,7 +18,7 @@ immich-refresh <path> --dry-run
 
 Example command:
 
-`immich upload -H -r -c 24 -A <album name> <path>/*`
+`immich upload -H -r -c 24 -A <album name> <path>/`
 
 This command fails if the immich CLI is not yet authenticated to the server. Make sure that the error is shown to the user.
 

@@ -54,7 +54,7 @@ impl Executer {
 
     fn format_command(&self, args: &ExecuteArgs) -> String {
         format!(
-            r#"{} upload -H -r -c 24 -A "{}" "{}/*""#,
+            r#"{} upload -H -r -c 24 -A "{}" "{}/""#,
             IMMICH_CLI_COMMAND, args.album_name, args.path
         )
     }
@@ -263,7 +263,7 @@ mod tests {
         let command = executer.format_command(&args);
         assert_eq!(
             command,
-            r#"immich upload -H -r -c 24 -A "grandchildA" "/base/child1/grandchildA/*""#
+            r#"immich upload -H -r -c 24 -A "grandchildA" "/base/child1/grandchildA/""#
         );
     }
 
