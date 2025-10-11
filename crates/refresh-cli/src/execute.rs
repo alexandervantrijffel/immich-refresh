@@ -250,9 +250,6 @@ impl Execute for Executer {
         // Check for signals at the very start
         self.check_signal();
 
-        // Check if Immich CLI exists before proceeding
-        Self::check_immich_cli_exists()?;
-
         let command_args = self.build_command_args(args);
         let display_str = self.format_command_display(args);
 
@@ -260,6 +257,8 @@ impl Execute for Executer {
             info!("[DRY RUN] Would execute: {}", display_str);
             Ok(())
         } else {
+            // Check if Immich CLI exists before executing actual command
+            Self::check_immich_cli_exists()?;
             self.execute_command(&command_args, &display_str)
         }
     }
@@ -338,26 +337,13 @@ mod tests {
             dry_run,
         };
 
-        let immich_found = is_immich_cli_installed();
         let result = executer.execute(&args);
 
-        if immich_found {
-            // If immich is found, the function should return success (dry run mode)
-            assert!(
-                result.is_ok(),
-                "Expected success when immich CLI is found in dry run mode"
-            );
-        } else {
-            // If immich is not found, the function should return ImmichCliNotFound error
-            assert!(
-                result.is_err(),
-                "Expected error when immich CLI is not found"
-            );
-            assert!(matches!(
-                result.unwrap_err(),
-                ExecuteError::ImmichCliNotFound(_)
-            ));
-        }
+        // In dry run mode, we don't check for immich CLI, so it should always succeed
+        assert!(
+            result.is_ok(),
+            "Expected success in dry run mode regardless of immich CLI presence"
+        );
     }
 
     #[test]
@@ -369,26 +355,13 @@ mod tests {
             dry_run: true,
         };
 
-        let immich_found = is_immich_cli_installed();
         let result = executer.execute(&args);
 
-        if immich_found {
-            // If immich is found, the function should return success (dry run mode)
-            assert!(
-                result.is_ok(),
-                "Expected success when immich CLI is found in dry run mode"
-            );
-        } else {
-            // If immich is not found, the function should return ImmichCliNotFound error
-            assert!(
-                result.is_err(),
-                "Expected error when immich CLI is not found"
-            );
-            assert!(matches!(
-                result.unwrap_err(),
-                ExecuteError::ImmichCliNotFound(_)
-            ));
-        }
+        // In dry run mode, we don't check for immich CLI, so it should always succeed
+        assert!(
+            result.is_ok(),
+            "Expected success in dry run mode regardless of immich CLI presence"
+        );
     }
 
     #[test]
